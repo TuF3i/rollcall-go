@@ -17,6 +17,10 @@ import (
 	"github.com/Auto-CQUPT-Plan/rollcall-go/internal/notify"
 )
 
+var (
+	startupBanner = logger.Dim("━━━") + logger.Section(" Edge Server ") + logger.Dim("━━━")
+)
+
 func main() {
 	logger.Setup(os.Stdout)
 
@@ -25,7 +29,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	slog.Info("Edge Server 启动中", "client_id", config.ClientID[:8])
+	slog.Info(startupBanner)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()

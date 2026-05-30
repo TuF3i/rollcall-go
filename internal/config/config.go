@@ -9,6 +9,7 @@ import (
 	"strings"
 	"sync/atomic"
 
+	"github.com/Auto-CQUPT-Plan/rollcall-go/internal/logger"
 	"github.com/google/uuid"
 )
 
@@ -22,6 +23,7 @@ type Config struct {
 	CenterServerSecret   string `json:"center_server_secret"`
 	AutoLocationCheckin  bool   `json:"auto_location_checkin"`
 	AutoNumberCheckin    bool   `json:"auto_number_checkin"`
+	PollDelay            int    `json:"poll_delay"`
 	TGBotToken           string `json:"tg_bot_token"`
 	TGChatID             string `json:"tg_chat_id"`
 }
@@ -47,6 +49,7 @@ func Load() error {
 		HTTPPort:             &defaultPort,
 		AutoLocationCheckin:  true,
 		AutoNumberCheckin:    true,
+		PollDelay:            30,
 	}
 
 	// Load from file
@@ -66,7 +69,27 @@ func Load() error {
 
 	// Load or generate client ID
 	ClientID = loadClientID()
-	slog.Info("配置已加载", "client_id", ClientID)
+
+	features := ""
+	if Cfg.AutoLocationCheckin {
+		features += " 定位"
+	}
+	if Cfg.AutoNumberCheckin {
+		features += " 数字"
+	}
+	if Cfg.CenterServerURL != "" {
+		features += " 共享"
+	}
+	if features == "" {
+		features = " 无"
+	}
+
+	slog.Info(fmt.Sprintf("%s %s %s",
+		logger.TagOK("配置已加载"),
+		logger.KV("客户端", ClientID[:8]+"..."),
+		logger.KV("功能", strings.TrimSpace(features))))
+
+	Dump()
 
 	return nil
 }
@@ -111,6 +134,12 @@ func applyEnvOverrides() {
 		lower := strings.ToLower(v)
 		Cfg.AutoNumberCheckin = lower == "true" || lower == "1" || lower == "yes"
 	}
+	if v := os.Getenv("POLL_DELAY"); v != "" {
+		var m int
+		if _, err := fmt.Sscanf(v, "%d", &m); err == nil {
+			Cfg.PollDelay = m
+		}
+	}
 	if v := os.Getenv("TG_BOT_TOKEN"); v != "" {
 		Cfg.TGBotToken = v
 	}
@@ -138,6 +167,60 @@ func loadClientID() string {
 		slog.Warn("client_id 保存失败", "error", err)
 	}
 	return id
+}
+
+// Dump prints the full configuration in a structured format.
+func Dump() {
+	mask := func(s string) string {
+		if len(s) > 4 {
+			return s[:2] + strings.Repeat("*", len(s)-4) + s[len(s)-2:]
+		}
+		return strings.Repeat("*", len(s))
+	}
+
+	slog.Info(fmt.Sprintf("  %s", logger.Section("账号")))
+	slog.Info(fmt.Sprintf("    %s %s", logger.K("用户名"), logger.V(Cfg.Username)))
+	if Cfg.Password != "" {
+		slog.Info(fmt.Sprintf("    %s %s", logger.K("密码"), logger.Dim(mask(Cfg.Password))))
+	}
+	slog.Info(fmt.Sprintf("    %s %s", logger.K("客户端ID"), logger.V(ClientID)))
+
+	if Cfg.CenterServerURL != "" {
+		slog.Info(fmt.Sprintf("  %s", logger.Section("中心服务器")))
+		slog.Info(fmt.Sprintf("    %s %s", logger.K("地址"), logger.V(Cfg.CenterServerURL)))
+		if Cfg.CenterServerSecret != "" {
+			slog.Info(fmt.Sprintf("    %s %s", logger.K("密钥"), logger.Dim(mask(Cfg.CenterServerSecret))))
+		}
+	}
+
+	slog.Info(fmt.Sprintf("  %s", logger.Section("签到")))
+	slog.Info(fmt.Sprintf("    %s %s", logger.K("轮询间隔"), logger.V(fmt.Sprintf("%ds", Cfg.PollDelay))))
+	slog.Info(fmt.Sprintf("    %s %s", logger.K("自动定位"), logger.V(boolStr(Cfg.AutoLocationCheckin))))
+	slog.Info(fmt.Sprintf("    %s %s", logger.K("自动数字"), logger.V(boolStr(Cfg.AutoNumberCheckin))))
+
+	if Cfg.CurriculumAPI != "" {
+		slog.Info(fmt.Sprintf("  %s", logger.Section("课表")))
+		slog.Info(fmt.Sprintf("    %s %s", logger.K("API"), logger.V(Cfg.CurriculumAPI)))
+		slog.Info(fmt.Sprintf("    %s %s", logger.K("提前时间"), logger.V(fmt.Sprintf("%dmin", Cfg.CurriculumPreMinutes))))
+	}
+
+	if Cfg.TGBotToken != "" && Cfg.TGChatID != "" {
+		slog.Info(fmt.Sprintf("  %s", logger.Section("通知")))
+		slog.Info(fmt.Sprintf("    %s %s", logger.K("机器人"), logger.V(mask(Cfg.TGBotToken))))
+		slog.Info(fmt.Sprintf("    %s %s", logger.K("聊天ID"), logger.V(Cfg.TGChatID)))
+	}
+
+	if Cfg.HTTPPort != nil {
+		slog.Info(fmt.Sprintf("  %s", logger.Section("HTTP")))
+		slog.Info(fmt.Sprintf("    %s %s", logger.K("端口"), logger.V(fmt.Sprintf(":%d", *Cfg.HTTPPort))))
+	}
+}
+
+func boolStr(b bool) string {
+	if b {
+		return "✔"
+	}
+	return "✘"
 }
 
 func CookiesPath() string {

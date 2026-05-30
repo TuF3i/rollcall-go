@@ -12,6 +12,7 @@ import (
 
 	"github.com/Auto-CQUPT-Plan/rollcall-go/internal/config"
 	"github.com/Auto-CQUPT-Plan/rollcall-go/internal/lms"
+	"github.com/Auto-CQUPT-Plan/rollcall-go/internal/logger"
 	"github.com/Auto-CQUPT-Plan/rollcall-go/internal/notify"
 )
 
@@ -75,6 +76,7 @@ func (p *Poller) TriggerPoll() {
 
 // Run starts the polling loop. Blocks until ctx is cancelled.
 func (p *Poller) Run(ctx context.Context) {
+	p.log.Info("轮询签到已启动", "间隔", "30s")
 	p.loadCurriculumFromFile()
 
 	for {
@@ -89,20 +91,26 @@ func (p *Poller) Run(ctx context.Context) {
 
 		select {
 		case <-ctx.Done():
+			p.log.Info("轮询签到已停止")
 			return
 		case <-p.triggerCh:
+			p.log.Debug("轮询被主动触发")
 		case <-time.After(30 * time.Second):
+			p.log.Debug("轮询超时触发")
 		}
 	}
 }
 
 func (p *Poller) pollOnce(ctx context.Context) {
+	p.log.Debug("开始轮询")
+
 	// Update curriculum if needed
 	if config.Cfg.CurriculumAPI != "" {
 		p.fetchCurriculum(ctx)
 	}
 
 	if !p.shouldPoll() {
+		p.log.Debug("当前不在轮询窗口内，跳过")
 		return
 	}
 
@@ -128,7 +136,11 @@ func (p *Poller) pollOnce(ctx context.Context) {
 	for _, r := range rollcalls {
 		newActiveRollcalls[r.RollcallID] = r
 		if _, exists := p.activeRollcalls[r.RollcallID]; !exists && r.Status == "absent" {
-			p.log.Info("发现活跃签到", "rollcall_id", r.RollcallID, "source", r.Source, "course", r.CourseTitle)
+			p.log.Info(fmt.Sprintf("%s %s %s %s",
+				logger.Section("签到"),
+				logger.KV("课程", r.CourseTitle),
+				logger.KV("类型", r.Source),
+				logger.KV("ID", r.RollcallID)))
 			notify.Sendf("🔍 发现活跃签到\n课程: %s\n类型: %s", r.CourseTitle, r.Source)
 		}
 	}
@@ -136,7 +148,11 @@ func (p *Poller) pollOnce(ctx context.Context) {
 	for id, r := range p.activeRollcalls {
 		if newR, exists := newActiveRollcalls[id]; exists && newR.Status != "absent" && !p.completedRollcalls[id] {
 			p.completedRollcalls[id] = true
-			p.log.Info("签到完成", "rollcall_id", id, "source", r.Source, "course", r.CourseTitle)
+			p.log.Info(fmt.Sprintf("%s %s %s %s",
+				logger.TagOK("完成"),
+				logger.KV("课程", r.CourseTitle),
+				logger.KV("类型", r.Source),
+				logger.KV("ID", id)))
 			notify.Sendf("✅ 签到完成\n课程: %s\n类型: %s", r.CourseTitle, r.Source)
 		}
 	}
@@ -450,7 +466,15 @@ func (p *Poller) fetchCurriculum(ctx context.Context) {
 		p.log.Warn("课表缓存保存失败", "error", err)
 	}
 
-	p.log.Info("课表已更新", "课程数", len(data.Instances))
+	// 统计课程信息
+	courseMap := make(map[string]int)
+	for _, inst := range data.Instances {
+		courseMap[inst.Course]++
+	}
+	p.log.Info(fmt.Sprintf("%s %s %s",
+		logger.Section("课表已更新"),
+		logger.KV("课程总数", len(courseMap)),
+		logger.KV("实例数", len(data.Instances))))
 }
 
 func (p *Poller) loadCurriculumFromFile() {
@@ -472,7 +496,14 @@ func (p *Poller) loadCurriculumFromFile() {
 	}
 	p.mu.Unlock()
 
-	p.log.Info("已从缓存加载课表")
+	courseMap := make(map[string]int)
+	for _, inst := range cache.Data.Instances {
+		courseMap[inst.Course]++
+	}
+	p.log.Info(fmt.Sprintf("%s %s %s",
+		logger.Section("课表缓存已加载"),
+		logger.KV("课程总数", len(courseMap)),
+		logger.KV("实例数", len(cache.Data.Instances))))
 }
 
 func parseTimeRange(dateStr, startStr, endStr string) (time.Time, time.Time, error) {

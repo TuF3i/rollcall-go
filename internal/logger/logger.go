@@ -7,16 +7,17 @@ import (
 	"log/slog"
 	"sync"
 	"time"
+
+	"github.com/fatih/color"
 )
 
-const (
-	colorReset  = "\033[0m"
-	colorRed    = "\033[31m"
-	colorGreen  = "\033[32m"
-	colorYellow = "\033[33m"
-	colorCyan   = "\033[36m"
-	colorGray   = "\033[90m"
-	colorBold   = "\033[1m"
+var (
+	styleTime    = color.New(color.FgHiBlack)
+	styleError   = color.New(color.FgRed, color.Bold)
+	styleWarn    = color.New(color.FgYellow)
+	styleInfo    = color.New(color.FgGreen)
+	styleDebug   = color.New(color.FgHiBlack)
+	styleAttrKey = color.New(color.FgHiBlack)
 )
 
 type PrettyHandler struct {
@@ -36,21 +37,20 @@ func (h *PrettyHandler) Enabled(_ context.Context, level slog.Level) bool {
 }
 
 func (h *PrettyHandler) Handle(_ context.Context, r slog.Record) error {
-	timeStr := r.Time.Format("15:04:05")
+	timeStr := styleTime.Sprint(r.Time.Format("15:04:05"))
 
 	var levelStr string
 	switch {
 	case r.Level >= slog.LevelError:
-		levelStr = colorRed + colorBold + "ERROR" + colorReset
+		levelStr = styleError.Sprint("ERROR")
 	case r.Level >= slog.LevelWarn:
-		levelStr = colorYellow + " WARN" + colorReset
+		levelStr = styleWarn.Sprint(" WARN")
 	case r.Level >= slog.LevelInfo:
-		levelStr = colorGreen + " INFO" + colorReset
+		levelStr = styleInfo.Sprint(" INFO")
 	default:
-		levelStr = colorGray + "DEBUG" + colorReset
+		levelStr = styleDebug.Sprint("DEBUG")
 	}
 
-	// Build attrs string
 	var attrsStr string
 	allAttrs := make([]slog.Attr, 0, len(h.attrs)+int(r.NumAttrs()))
 	allAttrs = append(allAttrs, h.attrs...)
@@ -59,18 +59,16 @@ func (h *PrettyHandler) Handle(_ context.Context, r slog.Record) error {
 		return true
 	})
 
-	// Filter out noisy attrs, keep only useful ones
 	for _, a := range allAttrs {
 		if a.Key == "component" {
-			continue // component is already implied by the message
+			continue
 		}
-		attrsStr += fmt.Sprintf("  %s%s=%s%s", colorGray, a.Key, a.Value.String(), colorReset)
+		attrsStr += fmt.Sprintf("  %s=%s", styleAttrKey.Sprint(a.Key), styleTime.Sprint(a.Value.String()))
 	}
 
-	line := fmt.Sprintf("%s%s%s %s %s▸%s %s%s\n",
-		colorGray, timeStr, colorReset,
+	line := fmt.Sprintf("%s %s ▸%s%s\n",
+		timeStr,
 		levelStr,
-		colorCyan, colorReset,
 		r.Message,
 		attrsStr,
 	)
@@ -92,11 +90,10 @@ func (h *PrettyHandler) WithGroup(name string) slog.Handler {
 	return &PrettyHandler{w: h.w, level: h.level, attrs: h.attrs, group: name}
 }
 
-// Setup initializes the global slog logger with the pretty handler and deduplication.
+// Setup initializes the global slog logger with the pretty handler.
 func Setup(w io.Writer) {
 	handler := NewPrettyHandler(w, slog.LevelInfo)
-	dedupHandler := NewDeduplicatingHandler(handler)
-	slog.SetDefault(slog.New(dedupHandler))
+	slog.SetDefault(slog.New(handler))
 }
 
 // FormatDuration formats a duration in a human-friendly way.
