@@ -28,6 +28,8 @@ type Config struct {
 	TGChatID             string `json:"tg_chat_id"`
 	EtcdEndpoints        string `json:"etcd_endpoints"`
 	EtcdPrefix           string `json:"etcd_prefix"`
+	ApiMode              string `json:"api_mode"`
+	RPCPort              int    `json:"rpc_port"`
 }
 
 var (
@@ -53,6 +55,8 @@ func Load() error {
 		AutoNumberCheckin:    true,
 		PollDelay:            30,
 		EtcdPrefix:           "/rollcall",
+		ApiMode:              "http",
+		RPCPort:              8888,
 	}
 
 	// Load from file
@@ -155,6 +159,15 @@ func applyEnvOverrides() {
 	if v := os.Getenv("EDGE_ETCD_PREFIX"); v != "" {
 		Cfg.EtcdPrefix = v
 	}
+	if v := os.Getenv("EDGE_API_MODE"); v != "" {
+		Cfg.ApiMode = v
+	}
+	if v := os.Getenv("EDGE_RPC_PORT"); v != "" {
+		var p int
+		if _, err := fmt.Sscanf(v, "%d", &p); err == nil {
+			Cfg.RPCPort = p
+		}
+	}
 }
 
 func loadClientID() string {
@@ -219,9 +232,16 @@ func Dump() {
 		slog.Info(fmt.Sprintf("    %s %s", logger.K("聊天ID"), logger.V(Cfg.TGChatID)))
 	}
 
-	if Cfg.HTTPPort != nil {
-		slog.Info(fmt.Sprintf("  %s", logger.Section("HTTP")))
-		slog.Info(fmt.Sprintf("    %s %s", logger.K("端口"), logger.V(fmt.Sprintf(":%d", *Cfg.HTTPPort))))
+	slog.Info(fmt.Sprintf("  %s", logger.Section("API")))
+	switch Cfg.ApiMode {
+	case "rpc":
+		slog.Info(fmt.Sprintf("    %s %s", logger.K("模式"), logger.V("Kitex RPC")))
+		slog.Info(fmt.Sprintf("    %s %s", logger.K("端口"), logger.V(fmt.Sprintf(":%d", Cfg.RPCPort))))
+	default:
+		slog.Info(fmt.Sprintf("    %s %s", logger.K("模式"), logger.V("HTTP")))
+		if Cfg.HTTPPort != nil {
+			slog.Info(fmt.Sprintf("    %s %s", logger.K("端口"), logger.V(fmt.Sprintf(":%d", *Cfg.HTTPPort))))
+		}
 	}
 
 	if Cfg.EtcdEndpoints != "" {

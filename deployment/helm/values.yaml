@@ -71,3 +71,5 @@ edge:
   #       tgChatId:             string
   #       etcdEndpoints:        string
   #       etcdPrefix:           string (默认 /rollcall)
+  #       apiMode:              string (默认 http，可选 rpc)
+  #       rpcPort:              int (默认 8888)

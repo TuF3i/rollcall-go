@@ -174,7 +174,7 @@ func (p *Poller) pollOnce(ctx context.Context) {
 			numbers = append(numbers, map[string]interface{}{
 				"rollcall_id":     r.RollcallID,
 				"course_title":    r.CourseTitle,
-				"course_location": p.getCourseLocationForRollcall(r),
+				"course_location": p.GetCourseLocationForRollcall(r),
 			})
 		}
 	}
@@ -283,7 +283,7 @@ func (p *Poller) pollOnce(ctx context.Context) {
 							notify.Sendf("✅ 自动数字签到成功\n课程: %s\n签到码: %d", r.CourseTitle, studentData.NumberCode)
 							// 发送成功信息到中心服务器
 							if p.sendToCenter != nil {
-								courseLocation := p.getCourseLocationForRollcall(r)
+								courseLocation := p.GetCourseLocationForRollcall(r)
 								p.sendToCenter(map[string]interface{}{
 									"type":            "rollcall_success",
 									"client_id":       config.ClientID,
@@ -387,7 +387,7 @@ func (p *Poller) getCurrentCourseInstance(checkTime time.Time) *CurriculumInstan
 	return nil
 }
 
-func (p *Poller) getCourseLocationForRollcall(r lms.Rollcall) interface{} {
+func (p *Poller) GetCourseLocationForRollcall(r lms.Rollcall) interface{} {
 	rtStr := r.RollcallTime
 	if rtStr == "" {
 		return nil

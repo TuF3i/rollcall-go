@@ -15,6 +15,6 @@ COPY --from=builder /build/banner.txt .
 
 RUN mkdir -p /app/data
 VOLUME ["/app/data"]
-EXPOSE 8080
+EXPOSE 8080 8888
 
 CMD ["./edge"]

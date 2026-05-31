@@ -35,6 +35,9 @@ spec:
             - name: http
               containerPort: {{ $.Values.edge.servicePort | default 8080 }}
               protocol: TCP
+            - name: rpc
+              containerPort: {{ .config.rpcPort | default 8888 }}
+              protocol: TCP
           envFrom:
             - configMapRef:
                 name: {{ include "rollcall-go.instance.name" (dict "root" $ "instance" .) }}-config

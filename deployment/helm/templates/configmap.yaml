@@ -16,4 +16,6 @@ data:
   POLL_DELAY: {{ .pollDelay | default 30 | toString | quote }}
   EDGE_ETCD_ENDPOINTS: {{ .config.etcdEndpoints | default "" | quote }}
   EDGE_ETCD_PREFIX: {{ .config.etcdPrefix | default "/rollcall" | quote }}
+  EDGE_API_MODE: {{ .config.apiMode | default "http" | quote }}
+  EDGE_RPC_PORT: {{ .config.rpcPort | default 8888 | toString | quote }}
 {{- end }}

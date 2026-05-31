@@ -13,6 +13,10 @@ spec:
       targetPort: http
       protocol: TCP
       name: http
+    - port: {{ .config.rpcPort | default 8888 }}
+      targetPort: rpc
+      protocol: TCP
+      name: rpc
   selector:
     {{- include "rollcall-go.instance.selectorLabels" (dict "root" $ "instance" .) | nindent 4 }}
 {{- end }}
