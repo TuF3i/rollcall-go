@@ -105,6 +105,189 @@ Edge Server                          Center Server
 - **Edge** — 运行在用户侧，轮询 LMS、执行签到、接收共享
 - **Center** — 中转站，广播签到码实现多节点共享
 
+## Edge Server HTTP API
+
+Edge Server 提供 HTTP 接口，可用于手动触发签到、查看状态等。基础地址为 `http://<host>:<port>`（默认端口 `8080`）。
+
+### GET /health
+
+服务健康检查。
+
+**请求**：无参数
+
+**响应**：
+```json
+{
+    "status": "ok",
+    "client_id": "abc12345-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+}
+```
+
+### GET /rollcalls
+
+获取当前所有活跃签到列表（从 LMS 实时拉取）。
+
+**请求**：无参数
+
+**响应**：
+```json
+[
+    {
+        "rollcall_id": 123456,
+        "source": "qr",
+        "status": "absent",
+        "course_title": "高等数学A",
+        "rollcall_time": "2026-05-30T10:00:00Z"
+    }
+]
+```
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| rollcall_id | int | 签到任务 ID |
+| source | string | 签到类型：`qr` / `number` / `radar` |
+| status | string | 状态：`absent`（未签） / `on_call`（已签） |
+| course_title | string | 课程名称 |
+| rollcall_time | string | 签到时间（ISO8601 UTC） |
+
+### GET /pause_shared
+
+获取当前共享签到的暂停状态。
+
+**请求**：无参数
+
+**响应**：
+```json
+{"pause": false}
+```
+
+### POST /pause_shared
+
+设置共享签到的暂停/恢复。
+
+**请求**：
+```json
+{"pause": true}
+```
+
+**响应**：
+```json
+{"message": "success", "pause": true}
+```
+
+### POST /rollcall/{rollcallID}/qr
+
+对指定签到任务进行二维码签到。
+
+**路径参数**：`rollcallID` — 签到任务 ID
+
+**请求**：
+```json
+{"data": "https://xxx/j?p=...!3~xxxxxxxxxxxx!4~..."}
+```
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| data | string | 二维码原始数据，支持 URL 格式或纯 hex 格式 |
+
+**成功**（200）：`{"message": "success"}`
+
+**失败**（400）：
+```json
+{"error": "invalid or expired QR data"}
+```
+
+| 错误码 | 说明 |
+|--------|------|
+| invalid or expired QR data | 二维码无效或过期 |
+| ERR_ROLLCALL_NOT_FOUND | 签到任务不存在 |
+| ERR_NOT_STARTED | 签到尚未开始 |
+| ERR_ALREADY_ANSWERED | 已签到过 |
+
+### POST /rollcall/{rollcallID}/number
+
+对指定签到任务进行数字码签到。
+
+**路径参数**：`rollcallID` — 签到任务 ID
+
+**请求**：
+```json
+{"numberCode": "1234"}
+```
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| numberCode | string / int | 签到数字码 |
+
+**成功**（200）：`{"message": "success"}`
+
+**失败**（400）：
+```json
+{"error": "ERR_INVALID_NUMBER"}
+```
+
+| 错误码 | 说明 |
+|--------|------|
+| ERR_INVALID_NUMBER | 数字码错误 |
+| ERR_ROLLCALL_NOT_FOUND | 签到任务不存在 |
+| ERR_NOT_STARTED | 签到尚未开始 |
+| ERR_ALREADY_ANSWERED | 已签到过 |
+
+### POST /rollcall/{rollcallID}/location
+
+对指定签到任务进行定位签到（雷达签到）。
+
+**路径参数**：`rollcallID` — 签到任务 ID
+
+**请求**：
+```json
+{"lat": 29.5382, "lon": 106.6050}
+```
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| lat | float | 纬度 |
+| lon | float | 经度 |
+
+**成功**（200）：`{"message": "success"}`
+
+**失败**（400）：
+```json
+{"error": "ERR_OUT_OF_RANGE"}
+```
+
+### POST /rollcallqr
+
+批量二维码签到。对所有未签到的 QR 类型签到任务自动执行签到。
+
+**请求**：
+```json
+{"data": "https://xxx/j?p=...!3~xxxxxxxxxxxx!4~..."}
+```
+
+**响应**：
+```json
+{
+    "results": [
+        {"rollcall_id": 123456, "status": "success"},
+        {"rollcall_id": 123458, "status": "failed", "error": "ERR_ROLLCALL_NOT_FOUND"}
+    ]
+}
+```
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| results[].rollcall_id | int | 签到任务 ID |
+| results[].status | string | `success` / `failed` |
+| results[].error | string | 失败时的错误码 |
+
+### 通用说明
+
+- 所有接口均使用 `Content-Type: application/json`
+- 签到成功后会触发**立即轮询**以获取最新状态，并**同步到 Center 服务器**（如有配置）
+- 二维码 `data` 支持两种格式：纯 hex 字符串（32 位），或 `/j?p=...!3~<hex>!4~...` URL 格式（自动提取 hex 部分）
+- 可通过设置 `http_port: null` 或环境变量 `EDGE_HTTP_PORT=` 完全禁用手动签到 HTTP 接口
+
 ## 相比 Python 版的改进
 
 - goroutine + context 生命周期管理
