@@ -26,6 +26,8 @@ type Config struct {
 	PollDelay            int    `json:"poll_delay"`
 	TGBotToken           string `json:"tg_bot_token"`
 	TGChatID             string `json:"tg_chat_id"`
+	EtcdEndpoints        string `json:"etcd_endpoints"`
+	EtcdPrefix           string `json:"etcd_prefix"`
 }
 
 var (
@@ -50,6 +52,7 @@ func Load() error {
 		AutoLocationCheckin:  true,
 		AutoNumberCheckin:    true,
 		PollDelay:            30,
+		EtcdPrefix:           "/rollcall",
 	}
 
 	// Load from file
@@ -146,6 +149,12 @@ func applyEnvOverrides() {
 	if v := os.Getenv("TG_CHAT_ID"); v != "" {
 		Cfg.TGChatID = v
 	}
+	if v := os.Getenv("EDGE_ETCD_ENDPOINTS"); v != "" {
+		Cfg.EtcdEndpoints = v
+	}
+	if v := os.Getenv("EDGE_ETCD_PREFIX"); v != "" {
+		Cfg.EtcdPrefix = v
+	}
 }
 
 func loadClientID() string {
@@ -213,6 +222,12 @@ func Dump() {
 	if Cfg.HTTPPort != nil {
 		slog.Info(fmt.Sprintf("  %s", logger.Section("HTTP")))
 		slog.Info(fmt.Sprintf("    %s %s", logger.K("端口"), logger.V(fmt.Sprintf(":%d", *Cfg.HTTPPort))))
+	}
+
+	if Cfg.EtcdEndpoints != "" {
+		slog.Info(fmt.Sprintf("  %s", logger.Section("服务注册")))
+		slog.Info(fmt.Sprintf("    %s %s", logger.K("Etcd"), logger.V(Cfg.EtcdEndpoints)))
+		slog.Info(fmt.Sprintf("    %s %s", logger.K("前缀"), logger.V(Cfg.EtcdPrefix)))
 	}
 }
 

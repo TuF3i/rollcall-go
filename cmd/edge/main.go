@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"net"
 	"net/http"
 	"os"
 	"os/signal"
@@ -15,6 +16,7 @@ import (
 	"github.com/Auto-CQUPT-Plan/rollcall-go/internal/lms"
 	"github.com/Auto-CQUPT-Plan/rollcall-go/internal/logger"
 	"github.com/Auto-CQUPT-Plan/rollcall-go/internal/notify"
+	"github.com/Auto-CQUPT-Plan/rollcall-go/internal/registry"
 )
 
 var (
@@ -88,9 +90,32 @@ func main() {
 			}
 		}()
 
+		// Register to etcd if configured
+		var registrar *registry.Registrar
+		if config.Cfg.EtcdEndpoints != "" {
+			hostPort := fmt.Sprintf("%s:%d", localIP(), *config.Cfg.HTTPPort)
+			r, err := registry.New(
+				config.Cfg.EtcdEndpoints,
+				config.Cfg.EtcdPrefix,
+				"rollcall_edge",
+				config.ClientID,
+				config.Cfg.Username,
+				hostPort,
+			)
+			if err != nil {
+				slog.Error("etcd 注册失败", "error", err)
+			} else {
+				registrar = r
+			}
+		}
+
 		sig := <-sigCh
 		slog.Info("收到信号，正在关闭...", "signal", sig)
 		cancel()
+
+		if registrar != nil {
+			registrar.Close()
+		}
 
 		shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 10*time.Second)
 		defer shutdownCancel()
@@ -102,4 +127,17 @@ func main() {
 	}
 
 	slog.Info("Edge Server 已停止")
+}
+
+func localIP() string {
+	addrs, err := net.InterfaceAddrs()
+	if err != nil {
+		return "127.0.0.1"
+	}
+	for _, a := range addrs {
+		if ipnet, ok := a.(*net.IPNet); ok && !ipnet.IP.IsLoopback() && ipnet.IP.To4() != nil {
+			return ipnet.IP.String()
+		}
+	}
+	return "127.0.0.1"
 }
