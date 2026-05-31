@@ -2,6 +2,8 @@ package logger
 
 import (
 	"fmt"
+	"log/slog"
+	"os"
 	"strings"
 
 	"github.com/fatih/color"
@@ -63,4 +65,24 @@ func TagWarn(label string) string {
 func Header(title string) string {
 	line := strings.Repeat("━", 3)
 	return dimC.Sprint(line) + sectionC.Sprint(title) + dimC.Sprint(line)
+}
+
+// PrintBanner reads and prints the ASCII art banner from file, then prints the server type below it.
+func PrintBanner(bannerPath, serverType string) {
+	data, err := os.ReadFile(bannerPath)
+	if err != nil {
+		slog.Debug("未找到 Banner 文件", "path", bannerPath)
+		return
+	}
+
+	bannerC := color.New(color.FgCyan)
+	bannerC.Println(string(data))
+
+	typeC := color.New(color.FgHiBlack)
+	tagC := color.New(color.FgWhite, color.BgCyan, color.Bold)
+	fmt.Fprintf(os.Stdout, "%s %s %s\n\n",
+		typeC.Sprint("━━━"),
+		tagC.Sprint(" "+serverType+" "),
+		typeC.Sprint("━━━"),
+	)
 }

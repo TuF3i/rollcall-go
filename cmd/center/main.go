@@ -20,6 +20,8 @@ var (
 func main() {
 	logger.Setup(os.Stdout)
 
+	logger.PrintBanner("banner.txt", "Center Server")
+
 	slog.Info(startupBanner)
 
 	srv := center.NewServer()

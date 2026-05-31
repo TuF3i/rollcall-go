@@ -24,6 +24,8 @@ var (
 func main() {
 	logger.Setup(os.Stdout)
 
+	logger.PrintBanner("banner.txt", "Edge Server")
+
 	if err := config.Load(); err != nil {
 		slog.Error("配置加载失败", "error", err)
 		os.Exit(1)
