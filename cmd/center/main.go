@@ -13,10 +13,16 @@ import (
 	"github.com/Auto-CQUPT-Plan/rollcall-go/internal/logger"
 )
 
+var (
+	startupBanner = logger.Dim("━━━") + logger.Section(" Center Server ") + logger.Dim("━━━")
+)
+
 func main() {
 	logger.Setup(os.Stdout)
 
-	slog.Info("Center Server 启动中")
+	logger.PrintBanner("banner.txt", "Center Server")
+
+	slog.Info(startupBanner)
 
 	srv := center.NewServer()
 

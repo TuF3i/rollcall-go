@@ -4,3 +4,4 @@ data/
 *.exe
 .DS_Store
 .env
+run.ps1

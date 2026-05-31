@@ -39,3 +39,20 @@ app.kubernetes.io/instance: {{ .Release.Name }}
 {{- $tag := .tag | default "latest" }}
 {{- if $registry }}{{ $registry }}/{{ end }}{{ $repository }}:{{ $tag }}
 {{- end }}
+
+{{- define "rollcall-go.instance.name" -}}
+{{- $root := .root -}}
+{{- $instance := .instance -}}
+{{- $fullname := include "rollcall-go.fullname" $root -}}
+{{- printf "%s-%s" $fullname $instance.name | trunc 63 | trimSuffix "-" -}}
+{{- end }}
+
+{{- define "rollcall-go.instance.labels" -}}
+{{ include "rollcall-go.labels" .root }}
+rollcall.auto/edge-instance: {{ .instance.name }}
+{{- end }}
+
+{{- define "rollcall-go.instance.selectorLabels" -}}
+{{ include "rollcall-go.selectorLabels" .root }}
+rollcall.auto/edge-instance: {{ .instance.name }}
+{{- end }}

@@ -142,7 +142,7 @@ func (s *Server) handleNumberCheckin(w http.ResponseWriter, r *http.Request) {
 		for _, rc := range rollcalls {
 			if rc.RollcallID == rollcallID {
 				courseTitle = rc.CourseTitle
-				courseLocation = s.poller.getCourseLocationForRollcall(rc)
+				courseLocation = s.poller.GetCourseLocationForRollcall(rc)
 				break
 			}
 		}

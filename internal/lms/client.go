@@ -19,6 +19,7 @@ import (
 
 	"github.com/Auto-CQUPT-Plan/rollcall-go/internal/config"
 	"github.com/Auto-CQUPT-Plan/rollcall-go/internal/crypto"
+	"github.com/Auto-CQUPT-Plan/rollcall-go/internal/logger"
 	"github.com/Auto-CQUPT-Plan/rollcall-go/internal/notify"
 )
 
@@ -180,7 +181,10 @@ func (c *Client) login(ctx context.Context) error {
 	for _, ck := range c.http.Jar.Cookies(u) {
 		if ck.Name == "session" {
 			c.saveCookies()
-			c.log.Info("IDS 登录成功")
+			c.log.Info(fmt.Sprintf("%s %s %s",
+				logger.TagOK("登录成功"),
+				logger.KV("用户", config.Cfg.Username),
+				logger.KV("客户端", config.ClientID[:8]+"...")))
 			notify.Send("🔑 IDS 登录成功")
 			return nil
 		}
@@ -259,6 +263,34 @@ func (c *Client) getRollcalls(ctx context.Context, canRetry bool) ([]Rollcall, e
 	}
 	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
 		return nil, fmt.Errorf("decode rollcalls: %w", err)
+	}
+
+	if len(result.Rollcalls) > 0 {
+		qrCount := 0
+		numCount := 0
+		radarCount := 0
+		courses := make(map[string]int)
+		for _, r := range result.Rollcalls {
+			courses[r.CourseTitle]++
+			switch r.Source {
+			case "qr":
+				qrCount++
+			case "number":
+				numCount++
+			case "radar":
+				radarCount++
+			}
+		}
+		courseList := make([]string, 0, len(courses))
+		for c := range courses {
+			courseList = append(courseList, c)
+		}
+		c.log.Info(fmt.Sprintf("%s %s %s %s %s",
+			logger.Section("签到列表"),
+			logger.KV("总数", len(result.Rollcalls)),
+			logger.KV("QR", qrCount),
+			logger.KV("数字", numCount),
+			logger.KV("雷达", radarCount)))
 	}
 
 	return result.Rollcalls, nil
