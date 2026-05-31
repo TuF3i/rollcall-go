@@ -190,7 +190,7 @@ func (p *Poller) pollOnce(ctx context.Context) {
 	}
 
 	// Auto radar check-in
-	if config.Cfg.CurriculumAPI != "" && config.Cfg.AutoLocationCheckin {
+	if config.Cfg.CurriculumAPI != "" && config.Cfg.AutoLocationCheckin && !config.PauseSharedRollcall.Load() {
 		inst := p.getCurrentCourseInstance(time.Now())
 		if inst != nil {
 			for _, r := range rollcalls {
@@ -243,7 +243,7 @@ func (p *Poller) pollOnce(ctx context.Context) {
 	}
 
 	// Auto number check-in
-	if config.Cfg.AutoNumberCheckin {
+	if config.Cfg.AutoNumberCheckin && !config.PauseSharedRollcall.Load() {
 		for _, r := range rollcalls {
 			if r.Source == "number" && r.Status == "absent" {
 				p.log.Info("自动数字签到: 发现未完成任务", "rollcall_id", r.RollcallID, "course", r.CourseTitle)
