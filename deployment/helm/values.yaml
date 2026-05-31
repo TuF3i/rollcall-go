@@ -14,108 +14,60 @@ image:
 nameOverride: ""
 fullnameOverride: ""
 
-# ============================================================
-# Edge Server 配置
-# ============================================================
-edge:
-  # 副本数
-  replicas: 1
-
-  # 容器端口
-  servicePort: 8080
-
-  # 资源限制
-  resources:
-    requests:
-      cpu: 100m
-      memory: 64Mi
-    limits:
-      cpu: 500m
-      memory: 256Mi
-
-  # 生存/就绪探针
-  livenessProbe:
-    enabled: true
-    path: /health
-    initialDelaySeconds: 10
-    periodSeconds: 30
-    timeoutSeconds: 5
-    failureThreshold: 3
-
-  readinessProbe:
-    enabled: true
-    path: /health
-    initialDelaySeconds: 5
-    periodSeconds: 10
-    timeoutSeconds: 3
-    failureThreshold: 3
-
-  # 节点选择
-  nodeSelector: {}
-
-  # 容忍度
-  tolerations: []
-
-  # 亲和性
-  affinity: {}
-
-  # Pod 注解
-  podAnnotations: {}
-
-  # Pod 标签
-  podLabels: {}
-
-  # 额外环境变量
-  extraEnv: []
-
-  # 额外卷挂载
-  extraVolumeMounts: []
-
-  # 额外卷
-  extraVolumes: []
-
-# ============================================================
-# 应用配置（注入到环境变量）
-# ============================================================
-config:
-  # IDS 账号（必填）
-  edgeUsername: ""
-  edgePassword: ""
-
-  # 课表 API
-  curriculumApi: ""
-
-  # Center 服务器连接
-  centerServerUrl: ""
-  centerServerSecret: ""
-
-  # 自动定位签到
-  autoLocationCheckin: true
-
-  # 自动数字签到
-  autoNumberCheckin: true
-
-  # Telegram 通知（可选）
-  tgBotToken: ""
-  tgChatId: ""
-
-# ============================================================
-# 存储配置
-# ============================================================
+# 持久化
 persistence:
-  enabled: true
-  storageClass: ""
-  accessMode: ReadWriteOnce
   size: 1Gi
+  accessMode: ReadWriteOnce
+  storageClass: ""
   existingClaim: ""
-  annotations: {}
 
-# ============================================================
-# Service 配置
-# ============================================================
+# Service 全局配置
 service:
   type: ClusterIP
-  annotations: {}
-  loadBalancerIP: ""
-  clusterIP: ""
-  nodePort: {}
+  # clusterIP:
+  # nodePort:
+
+# ============================================================
+# Edge Server 实例列表
+# ============================================================
+# 每添加一个实例，就会自动创建对应的 Deployment、Service、ConfigMap、Secret、PVC
+# 执行 helm upgrade 即可生效
+#
+# 示例：
+# edge:
+#   instances:
+#     - name: "student-a"
+#       config:
+#         edgeUsername: "2024001"
+#         edgePassword: "pass123"
+#         curriculumApi: "https://..."
+#         centerServerUrl: "wss://center.example.com/ws"
+#     - name: "student-b"
+#       config:
+#         edgeUsername: "2024002"
+#         edgePassword: "pass456"
+#
+# 完整配置字段见下方说明
+# ============================================================
+edge:
+  # 容器端口（所有实例共用）
+  servicePort: 8080
+
+  # 实例列表
+  instances: []
+  # 每个实例支持以下字段：
+  #   - name: string (必填，唯一标识)
+  #     pollDelay: int (可选，轮询间隔秒数，默认 30)
+  #     config:
+  #       edgeUsername:          string (必填)
+  #       edgePassword:          string (必填)
+  #       curriculumApi:         string
+  #       curriculumPreMinutes:  int (默认 10)
+  #       centerServerUrl:      string
+  #       centerServerSecret:   string
+  #       autoLocationCheckin:  bool (默认 true)
+  #       autoNumberCheckin:    bool (默认 true)
+  #       tgBotToken:           string
+  #       tgChatId:             string
+  #       etcdEndpoints:        string
+  #       etcdPrefix:           string (默认 /rollcall)
