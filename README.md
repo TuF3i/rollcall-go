@@ -22,7 +22,7 @@
 
 ```bash
 # 1. 复制配置
-cp deployment/docker-compose/.env.example .env
+cp deployment/docker-compose/.env.example deployment/docker-compose/.env
 # 编辑 .env 填入你的账号信息
 
 # 2. 启动
