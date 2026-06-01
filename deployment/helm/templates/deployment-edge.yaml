@@ -43,22 +43,6 @@ spec:
                 name: {{ include "rollcall-go.instance.name" (dict "root" $ "instance" .) }}-config
             - secretRef:
                 name: {{ include "rollcall-go.instance.name" (dict "root" $ "instance" .) }}-secret
-          livenessProbe:
-            httpGet:
-              path: /health
-              port: http
-            initialDelaySeconds: 10
-            periodSeconds: 30
-            timeoutSeconds: 5
-            failureThreshold: 3
-          readinessProbe:
-            httpGet:
-              path: /health
-              port: http
-            initialDelaySeconds: 5
-            periodSeconds: 10
-            timeoutSeconds: 3
-            failureThreshold: 3
           resources:
             requests:
               cpu: 100m
