@@ -1,14 +1,14 @@
-FROM golang:alpine AS builder
+FROM docker.jiaxin.site/library/golang:alpine AS builder
 ENV TZ=Asia/Shanghai
 
 WORKDIR /build
 COPY go.mod go.sum ./
-RUN go mod download
+RUN go env -w GOPROXY=https://goproxy.cn,direct && go mod download
 
 COPY . .
 RUN CGO_ENABLED=0 go build -ldflags="-s -w" -o edge ./cmd/edge
 
-FROM alpine:3.20
+FROM docker.jiaxin.site/library/alpine:3.20
 ENV TZ=Asia/Shanghai
 
 RUN apk add --no-cache ca-certificates tzdata

@@ -32,6 +32,8 @@ docker compose -f deployment/docker-compose/docker-compose.yml up -d
 docker compose -f deployment/docker-compose/docker-compose.yml logs -f
 ```
 
+> 构建镜像时若想使用国内加速，请使用 `Dockerfile.edge.cn` 进行构建
+
 ### 本地编译
 
 ```bash
