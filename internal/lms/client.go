@@ -49,7 +49,7 @@ type StudentRollcall struct {
 
 type StudentRollcallsData struct {
 	IsNumber     bool              `json:"is_number"`
-	NumberCode   int               `json:"number_code"`
+	NumberCode   string            `json:"number_code"`
 	RollcallList []StudentRollcall `json:"student_rollcalls"`
 }
 
