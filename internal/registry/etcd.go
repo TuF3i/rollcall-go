@@ -12,10 +12,10 @@ import (
 )
 
 type ServiceInfo struct {
-	Service    string `json:"service"`
-	ClientID   string `json:"client_id"`
-	Username   string `json:"edge_username"`
-	Addr       string `json:"addr"`
+	Service      string `json:"service"`
+	ClientID     string `json:"client_id"`
+	Username     string `json:"edge_username"`
+	Addr         string `json:"addr"`
 	RegisteredAt string `json:"registered_at"`
 }
 
@@ -23,6 +23,7 @@ type Registrar struct {
 	client  *clientv3.Client
 	leaseID clientv3.LeaseID
 	key     string
+	info    ServiceInfo
 	closeCh chan struct{}
 	done    chan struct{}
 }
@@ -36,68 +37,90 @@ func New(endpoints, prefix, serviceName, clientID, username, addr string) (*Regi
 		return nil, fmt.Errorf("etcd 连接失败: %w", err)
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
-
-	lease, err := cli.Grant(ctx, 10)
-	if err != nil {
-		cli.Close()
-		return nil, fmt.Errorf("etcd 租约创建失败: %w", err)
+	r := &Registrar{
+		client:  cli,
+		key:     fmt.Sprintf("%s/%s/%s", prefix, serviceName, clientID),
+		closeCh: make(chan struct{}),
+		done:    make(chan struct{}),
 	}
 
 	info := ServiceInfo{
-		Service:    serviceName,
-		ClientID:   clientID,
-		Username:   username,
-		Addr:       addr,
+		Service:      serviceName,
+		ClientID:     clientID,
+		Username:     username,
+		Addr:         addr,
 		RegisteredAt: time.Now().UTC().Format(time.RFC3339),
 	}
-	val, _ := json.Marshal(info)
+	r.info = info
 
-	key := fmt.Sprintf("%s/%s/%s", prefix, serviceName, clientID)
-	_, err = cli.Put(ctx, key, string(val), clientv3.WithLease(lease.ID))
-	if err != nil {
+	if err := r.register(info); err != nil {
 		cli.Close()
-		return nil, fmt.Errorf("etcd 注册失败: %w", err)
+		return nil, err
 	}
 
 	slog.Info(fmt.Sprintf("%s %s %s",
 		logger.TagOK("服务已注册"),
 		logger.KV("etcd", endpoints),
-		logger.KV("key", key)))
-
-	r := &Registrar{
-		client:  cli,
-		leaseID: lease.ID,
-		key:     key,
-		closeCh: make(chan struct{}),
-		done:    make(chan struct{}),
-	}
+		logger.KV("key", r.key)))
 
 	go r.keepAlive()
 
 	return r, nil
 }
 
+func (r *Registrar) register(info ServiceInfo) error {
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	lease, err := r.client.Grant(ctx, 10)
+	if err != nil {
+		return fmt.Errorf("etcd 租约创建失败: %w", err)
+	}
+
+	val, _ := json.Marshal(info)
+	_, err = r.client.Put(ctx, r.key, string(val), clientv3.WithLease(lease.ID))
+	if err != nil {
+		return fmt.Errorf("etcd 注册失败: %w", err)
+	}
+
+	r.leaseID = lease.ID
+	return nil
+}
+
 func (r *Registrar) keepAlive() {
 	defer close(r.done)
 
-	ch, err := r.client.KeepAlive(context.Background(), r.leaseID)
-	if err != nil {
-		slog.Error("etcd 租约续期启动失败", "error", err)
-		return
-	}
-
 	for {
-		select {
-		case <-r.closeCh:
-			return
-		case _, ok := <-ch:
-			if !ok {
-				slog.Warn("etcd 租约续期通道关闭")
+		ch, err := r.client.KeepAlive(context.Background(), r.leaseID)
+		if err != nil {
+			slog.Warn("etcd 租约续期失败，5秒后重试", "error", err)
+			select {
+			case <-r.closeCh:
 				return
+			case <-time.After(5 * time.Second):
+				if err := r.register(r.info); err != nil {
+					slog.Warn("etcd 重新注册失败", "error", err)
+				}
+				continue
 			}
 		}
+
+		for {
+			select {
+			case <-r.closeCh:
+				return
+			case _, ok := <-ch:
+				if !ok {
+					slog.Warn("etcd 租约续期通道关闭，正在重新注册")
+					if err := r.register(r.info); err != nil {
+						slog.Warn("etcd 重新注册失败", "error", err)
+					}
+					goto reconnect
+				}
+			}
+		}
+
+	reconnect:
 	}
 }
 
