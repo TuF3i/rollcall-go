@@ -272,15 +272,15 @@ func (p *Poller) pollOnce(ctx context.Context) {
 					p.log.Info("自动数字签到: 检查任务状态", "rollcall_id", r.RollcallID,
 						"is_number", studentData.IsNumber, "number_code", studentData.NumberCode,
 						"checked_in_count", checkedInCount)
-					if studentData.IsNumber && studentData.NumberCode > 0 && checkedInCount > 0 {
+					if studentData.IsNumber && studentData.NumberCode != "" && checkedInCount > 0 {
 						p.log.Info("自动数字签到: 发现有人已签到，提交签到码",
 							"rollcall_id", r.RollcallID, "number_code", studentData.NumberCode)
 						result := p.lmsClient.DoCheckin(ctx, r.RollcallID, "number", map[string]interface{}{
-							"numberCode": fmt.Sprintf("%d", studentData.NumberCode),
+							"numberCode": studentData.NumberCode,
 						})
 						if result.Success {
 							p.log.Info("自动数字签到成功", "课程", r.CourseTitle, "rollcall_id", r.RollcallID)
-							notify.Sendf("✅ 自动数字签到成功\n课程: %s\n签到码: %d", r.CourseTitle, studentData.NumberCode)
+							notify.Sendf("✅ 自动数字签到成功\n课程: %s\n签到码: %s", r.CourseTitle, studentData.NumberCode)
 							// 发送成功信息到中心服务器
 							if p.sendToCenter != nil {
 								courseLocation := p.GetCourseLocationForRollcall(r)
