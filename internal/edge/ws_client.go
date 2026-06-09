@@ -13,6 +13,7 @@ import (
 	"github.com/Auto-CQUPT-Plan/rollcall-go/internal/config"
 	"github.com/Auto-CQUPT-Plan/rollcall-go/internal/lms"
 	"github.com/Auto-CQUPT-Plan/rollcall-go/internal/notify"
+	"github.com/Auto-CQUPT-Plan/rollcall-go/internal/protocol"
 )
 
 type WSClient struct {
@@ -210,8 +211,16 @@ func (w *WSClient) handleQRShare(ctx context.Context, msg map[string]interface{}
 }
 
 func (w *WSClient) handleNumberShare(ctx context.Context, msg map[string]interface{}, fromClientID string) {
-	rollcallID := int(msg["rollcall_id"].(float64))
-	number := int(msg["rollcall_number"].(float64))
+	rollcallID, ok := protocol.ParseInt(msg["rollcall_id"])
+	if !ok {
+		w.log.Warn("忽略无效数字共享消息", "field", "rollcall_id", "value", msg["rollcall_id"], "from_client_id", fromClientID)
+		return
+	}
+	number, ok := protocol.ParseInt(msg["rollcall_number"])
+	if !ok {
+		w.log.Warn("忽略无效数字共享消息", "field", "rollcall_number", "value", msg["rollcall_number"], "from_client_id", fromClientID)
+		return
+	}
 	courseTitle, _ := msg["course_title"].(string)
 	courseLocation, _ := msg["course_location"].(string)
 

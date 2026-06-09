@@ -11,6 +11,8 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/gorilla/websocket"
+
+	"github.com/Auto-CQUPT-Plan/rollcall-go/internal/protocol"
 )
 
 var upgrader = websocket.Upgrader{
@@ -32,10 +34,10 @@ func NewServer() *Server {
 	extCtrl := os.Getenv("EXTERNAL_SECRET_CONTROLLER")
 
 	return &Server{
-		manager: NewConnectionManager(),
-		state:   NewSharedState(),
-		log:     slog.With("component", "center"),
-		secret:  secret,
+		manager:                  NewConnectionManager(),
+		state:                    NewSharedState(),
+		log:                      slog.With("component", "center"),
+		secret:                   secret,
 		externalSecretController: extCtrl,
 	}
 }
@@ -97,9 +99,9 @@ func (s *Server) getStatusPayload() map[string]interface{} {
 	ids := s.manager.ActiveClientIDs()
 	return map[string]interface{}{
 		"remaining_seconds": s.state.GetRemainingSeconds(),
-		"current_qr":       s.state.GetCurrentQR(),
-		"connected_edges":  len(ids),
-		"uncheckin_edges":  s.state.UncheckinCount(),
+		"current_qr":        s.state.GetCurrentQR(),
+		"connected_edges":   len(ids),
+		"uncheckin_edges":   s.state.UncheckinCount(),
 	}
 }
 
@@ -241,11 +243,10 @@ func (s *Server) handleRollcallTasks(conn *websocket.Conn, clientID string, msg 
 			continue
 		}
 
-		ridVal, ok := numMap["rollcall_id"].(float64)
+		rollcallID, ok := protocol.ParseInt(numMap["rollcall_id"])
 		if !ok {
 			continue
 		}
-		rollcallID := int(ridVal)
 		courseTitle, _ := numMap["course_title"].(string)
 		var courseLocation *string
 		if loc, ok := numMap["course_location"].(string); ok {
@@ -303,16 +304,16 @@ func (s *Server) handleRollcallSuccess(clientID string, msg map[string]interface
 		}
 
 	case "number":
-		ridVal, ok := msg["rollcall_id"].(float64)
+		rollcallID, ok := protocol.ParseInt(msg["rollcall_id"])
 		if !ok {
+			s.log.Warn("忽略无效数字签到消息", "client_id", senderID, "field", "rollcall_id", "value", msg["rollcall_id"])
 			return
 		}
-		rollcallID := int(ridVal)
-		numVal, ok := msg["rollcall_number"].(float64)
+		number, ok := protocol.ParseInt(msg["rollcall_number"])
 		if !ok {
+			s.log.Warn("忽略无效数字签到消息", "client_id", senderID, "field", "rollcall_number", "value", msg["rollcall_number"])
 			return
 		}
-		number := int(numVal)
 		courseTitle, _ := msg["course_title"].(string)
 		var courseLocation *string
 		if loc, ok := msg["course_location"].(string); ok {
