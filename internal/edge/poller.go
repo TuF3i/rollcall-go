@@ -61,6 +61,20 @@ func NewPoller(lmsClient *lms.Client) *Poller {
 	}
 }
 
+func countCheckedInRollcalls(studentData *lms.StudentRollcallsData) int {
+	if studentData == nil {
+		return 0
+	}
+
+	checkedInCount := 0
+	for _, sr := range studentData.RollcallList {
+		if sr.Status == "on_call" {
+			checkedInCount++
+		}
+	}
+	return checkedInCount
+}
+
 // SetSendFunc sets the function used to send messages to the center server.
 func (p *Poller) SetSendFunc(fn SendToCenterFunc) {
 	p.sendToCenter = fn
@@ -262,13 +276,7 @@ func (p *Poller) pollOnce(ctx context.Context) {
 					continue
 				}
 				if studentData != nil {
-					// 计算已签到人数
-					checkedInCount := 0
-					for _, sr := range studentData.RollcallList {
-						if sr.Status == "on_call" {
-							checkedInCount++
-						}
-					}
+					checkedInCount := countCheckedInRollcalls(studentData)
 					p.log.Info("自动数字签到: 检查任务状态", "rollcall_id", r.RollcallID,
 						"is_number", studentData.IsNumber, "number_code", studentData.NumberCode,
 						"checked_in_count", checkedInCount)
