@@ -1,0 +1,21 @@
+FROM golang:alpine AS builder
+ENV TZ=Asia/Shanghai
+
+WORKDIR /build
+COPY go.mod go.sum ./
+RUN go mod download
+
+COPY . .
+RUN CGO_ENABLED=0 go build -ldflags="-s -w" -o controller ./cmd/controller
+
+FROM alpine:3.20
+ENV TZ=Asia/Shanghai
+
+RUN apk add --no-cache ca-certificates tzdata
+WORKDIR /app
+COPY --from=builder /build/controller .
+COPY --from=builder /build/banner.txt .
+
+EXPOSE 8082
+
+CMD ["./controller"]

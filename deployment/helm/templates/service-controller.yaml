@@ -1,0 +1,17 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "rollcall-go.fullname" . }}-controller
+  labels:
+    {{- include "rollcall-go.labels" . | nindent 4 }}
+    app.kubernetes.io/component: controller
+spec:
+  type: {{ .Values.service.type | default "ClusterIP" }}
+  ports:
+    - port: {{ .Values.controller.servicePort | default 8082 }}
+      targetPort: http
+      protocol: TCP
+      name: http
+  selector:
+    {{- include "rollcall-go.selectorLabels" . | nindent 4 }}
+    app.kubernetes.io/component: controller

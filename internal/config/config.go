@@ -30,6 +30,11 @@ type Config struct {
 	EtcdPrefix           string `json:"etcd_prefix"`
 	ApiMode              string `json:"api_mode"`
 	RPCPort              int    `json:"rpc_port"`
+
+	// Controller
+	ControllerAPIMode  string `json:"controller_api_mode"`
+	ControllerHTTPPort int    `json:"controller_http_port"`
+	ControllerRPCPort  int    `json:"controller_rpc_port"`
 }
 
 var (
@@ -57,6 +62,9 @@ func Load() error {
 		EtcdPrefix:           "/rollcall",
 		ApiMode:              "http",
 		RPCPort:              8888,
+		ControllerAPIMode:    "http",
+		ControllerHTTPPort:   8082,
+		ControllerRPCPort:    8889,
 	}
 
 	// Load from file
@@ -166,6 +174,21 @@ func applyEnvOverrides() {
 		var p int
 		if _, err := fmt.Sscanf(v, "%d", &p); err == nil {
 			Cfg.RPCPort = p
+		}
+	}
+	if v := os.Getenv("CONTROLLER_API_MODE"); v != "" {
+		Cfg.ControllerAPIMode = v
+	}
+	if v := os.Getenv("CONTROLLER_HTTP_PORT"); v != "" {
+		var p int
+		if _, err := fmt.Sscanf(v, "%d", &p); err == nil {
+			Cfg.ControllerHTTPPort = p
+		}
+	}
+	if v := os.Getenv("CONTROLLER_RPC_PORT"); v != "" {
+		var p int
+		if _, err := fmt.Sscanf(v, "%d", &p); err == nil {
+			Cfg.ControllerRPCPort = p
 		}
 	}
 }

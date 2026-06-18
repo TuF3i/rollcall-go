@@ -73,3 +73,23 @@ edge:
   #       etcdPrefix:           string (默认 /rollcall)
   #       apiMode:              string (默认 http，可选 rpc)
   #       rpcPort:              int (默认 8888)
+
+# ============================================================
+# Controller 聚合控制中心（单实例）
+# ============================================================
+controller:
+  # 容器端口
+  servicePort: 8082
+
+  # etcd 配置
+  etcdEndpoints: ""
+  etcdPrefix: "/rollcall"
+
+  # 资源限制
+  resources:
+    requests:
+      cpu: 50m
+      memory: 32Mi
+    limits:
+      cpu: 200m
+      memory: 128Mi
