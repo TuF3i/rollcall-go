@@ -1,0 +1,21 @@
+# Checklist
+
+- [x] `internal/config/config.go` 包含 ControllerAPIMode、ControllerHTTPPort、ControllerRPCPort 字段
+- [x] `applyEnvOverrides()` 包含 CONTROLLER_API_MODE、CONTROLLER_HTTP_PORT、CONTROLLER_RPC_PORT 环境变量解析
+- [x] `internal/controller/discovery.go` 存在，包含 `Discovery` 结构体和 `ListEdges`/`Resolve` 方法
+- [x] `Discovery` 通过 etcd watch 实时发现 Edge 实例
+- [x] `internal/controller/server.go` 存在，chi router 注册所有端点
+- [x] `internal/controller/handler.go` 存在，每个端点先检查 username 是否存在
+- [x] `GET /health` 返回 Controller 健康状态
+- [x] `GET /edges` 返回所有在线 Edge 列表
+- [x] `POST /edges/{username}/health` 代理调用 Edge 并返回结果
+- [x] `POST /edges/{username}/rollcalls` 代理调用 Edge
+- [x] `POST /edges/{username}/qr-checkin` 代理调用 Edge
+- [x] `POST /edges/{username}/number-checkin` 代理调用 Edge
+- [x] `POST /edges/{username}/location-checkin` 代理调用 Edge
+- [x] `POST /edges/{username}/batch-qr-checkin` 代理调用 Edge
+- [x] 不存在的 username 返回 404 `{"error": "edge not found"}`
+- [x] `cmd/controller/main.go` 存在，可正常启动
+- [x] `Dockerfile.controller` 存在且可构建
+- [x] `go build ./...` 编译通过
+- [x] `helm template ./deployment/helm/` 渲染通过
