@@ -6,8 +6,8 @@ import (
 )
 
 type NumberTask struct {
-	CourseTitle     string  `json:"course_title"`
-	CourseLocation  *string `json:"course_location"`
+	CourseTitle    string  `json:"course_title"`
+	CourseLocation *string `json:"course_location"`
 	RollcallNumber *int    `json:"rollcall_number"`
 	UpdatedAt      float64 `json:"updated_at"`
 }
@@ -77,7 +77,6 @@ func (s *SharedState) UpdateQRData(qrString string) bool {
 	if ts > s.latestQRTimestamp {
 		s.latestQRTimestamp = ts
 		s.latestQRData = qrString
-		s.qrSuccessClients = make(map[string]struct{}) // Reset on new QR
 		return true
 	}
 	return false
